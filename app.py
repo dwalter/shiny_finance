@@ -4,10 +4,6 @@ import yfinance as yf
 import re
 import pdfplumber
 
-path = "/Users/dwalter/Documents/finance/taxes-2025(for yr 2024)/chase_prime_visa_credit_card_statements_2024/20240113-statements-1104-.pdf"
-
-allegiant_path = "./data/bofa_allegiant/eStmt_2022-09-09.pdf"
-
 def get_price(ticker):
     try: return yf.Ticker(ticker).history(period='1d')['Close'].iloc[-1]
     except Exception as e:
