@@ -79,9 +79,6 @@ def extract_transactions_from_cc_statement(file_path, account_name, n_date_cols=
 
     return transactions
 
-# extract_transactions_from_cc_statement(path, "chase_prime", n_date_cols=1)
-# extract_transactions_from_cc_statement(allegiant_path, "bofa_allegiant", n_date_cols=2)
-
 def extract_transactions_from_directory(directory, account_name, n_date_cols=1):
     transactions = []
     for filename in os.listdir(directory):
