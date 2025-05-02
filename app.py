@@ -1,5 +1,11 @@
 import csv
 import yfinance as yf
+import re
+import pdfplumber
+
+path = "/Users/dwalter/Documents/finance/taxes-2025(for yr 2024)/chase_prime_visa_credit_card_statements_2024/20240113-statements-1104-.pdf"
+
+allegiant_path = "./data/bofa_allegiant/eStmt_2022-09-09.pdf"
 
 def get_price(ticker):
     try: return yf.Ticker(ticker).history(period='1d')['Close'].iloc[-1]
@@ -31,10 +37,6 @@ with open('assets.csv', 'r') as file:
     print(f"{'Total Value':<20} {'':<15} {total_value:.2f}")
     print("-" * 45)
 
-path = "/Users/dwalter/Documents/finance/taxes-2025(for yr 2024)/chase_prime_visa_credit_card_statements_2024/20240113-statements-1104-.pdf"
-
-import pdfplumber
-
 def extract_text_from_pdf(pdf_path):
     text = ""
     with pdfplumber.open(pdf_path) as pdf:
@@ -42,41 +44,24 @@ def extract_text_from_pdf(pdf_path):
             text += page.extract_text() + "\n"
     return text
 
-extracted_text = extract_text_from_pdf(path)
-print(extracted_text)
-
-import re
-
-def extract_transactions_from_chase_statement(text):
-    '''
-    Extract transaction lines from Chase statement text.
-    Expected format: MM/DD Description $Amount (positive or negative)
-    Example:
-        01/04 Payment Thank You-Mobile -1,000.00
-        12/13 Spotify USA 877-7781161 NY 10.99
-        01/02 WHOLEFDS CAM 10010 CAMBRIDGE MA 10.00
-    '''
-    # Regex explanation:
-    # ^\d{2}/\d{2} : Starts with MM/DD
-    # \s+ : One or more spaces after the date
-    # (.+?) : Non-greedy capture of description (anything except the amount)
-    # \s+ : One or more spaces before the amount
-    # -?\d{1,3}(,\d{3})*\.\d{2} : Matches positive/negative amounts (e.g., 10.99, -2,438.15)
-    # $ : Ensures amount is at the end of the line
+def extract_transactions_from_cc_statement(file_path, account_name, n_date_cols=1):
     pattern = r'^\d{2}/\d{2}\s+(.+?)\s+-?\d{1,3}(,\d{3})*\.\d{2}$'
+    # pattern = r'^\d{2}/\d{2}\s+\d{2}/\d{2}\s+(.+?)\s+-?\d{1,3}(,\d{3})*\.\d{2}$'
+
+    text = extract_text_from_pdf(file_path)
+
+    filename = file_path.split('/')[-1]
 
     matching_lines = []
+
     for line in text.split('\n'):
-        # Skip empty lines or known non-transaction lines
         line = line.strip()
         if not line:
             continue
-        if any(keyword in line.lower() for keyword in ['page', 'statement date', 'totals', 'purchases', 'payments and other credits']):
-            continue
-        # Check if the line matches the transaction pattern
         if re.match(pattern, line):
             matching_lines.append(line)
 
+    transactions = []
     # now split into the date, description, and amount
     for i, line in enumerate(matching_lines):
         # Split the line into parts
@@ -86,13 +71,16 @@ def extract_transactions_from_chase_statement(text):
         # Extract the amount (last part)
         amount = float(parts[-1].replace(',', ''))
         # Extract the description (everything in between)
-        description = ' '.join(parts[1:-1])
+        description = ' '.join(parts[n_date_cols + 1:-1])
         # Replace the original line with a tuple of (date, description, amount)
-        matching_lines[i] = (date, description, amount)
+        if amount == 0.0: continue
+        transactions.append([date, description, amount, filename, account_name])
 
-    return matching_lines
+    print("Extracted transactions:")
+    for transaction in transactions:
+        print(transaction)
 
-print("Extracted transactions:")
-transactions = extract_transactions_from_chase_statement(extracted_text)
-for transaction in transactions:
-    print(transaction)
+    return transactions
+
+extract_transactions_from_cc_statement(path, "chase_prime", n_date_cols=1)
+extract_transactions_from_cc_statement(allegiant_path, "bofa_allegiant", n_date_cols=2)
