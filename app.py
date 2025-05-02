@@ -1,3 +1,4 @@
+import os
 import csv
 import yfinance as yf
 import re
@@ -82,5 +83,17 @@ def extract_transactions_from_cc_statement(file_path, account_name, n_date_cols=
 
     return transactions
 
-extract_transactions_from_cc_statement(path, "chase_prime", n_date_cols=1)
-extract_transactions_from_cc_statement(allegiant_path, "bofa_allegiant", n_date_cols=2)
+# extract_transactions_from_cc_statement(path, "chase_prime", n_date_cols=1)
+# extract_transactions_from_cc_statement(allegiant_path, "bofa_allegiant", n_date_cols=2)
+
+def extract_transactions_from_directory(directory, account_name, n_date_cols=1):
+    transactions = []
+    for filename in os.listdir(directory):
+        if filename.endswith(".pdf"):
+            file_path = os.path.join(directory, filename)
+            transactions += extract_transactions_from_cc_statement(file_path, account_name, n_date_cols)
+    return transactions
+
+extract_transactions_from_directory("./data/chase_prime/", "chase_prime", n_date_cols=1)
+extract_transactions_from_directory("./data/bofa_allegiant/", "bofa_allegiant", n_date_cols=2)
+extract_transactions_from_directory("./data/bofa_business/", "bofa_business", n_date_cols=2)
