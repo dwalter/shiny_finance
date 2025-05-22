@@ -156,8 +156,88 @@ def extract_transactions_from_directory(directory, account_name, n_date_cols=1):
         if filename.endswith(".pdf"):
             file_path = os.path.join(directory, filename)
             transactions += extract_transactions_from_cc_statement(file_path, account_name, n_date_cols)
+    output_file = f"./data/processed/{account_name}_processed_transactions.csv"
+    with open(output_file, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['date', 'description', 'amount', 'filename', 'account name'])
+        for transaction in transactions: writer.writerow(transaction)
     return transactions
 
 extract_transactions_from_directory("./data/chase_prime/", "chase_prime", n_date_cols=1)
 extract_transactions_from_directory("./data/bofa_allegiant/", "bofa_allegiant", n_date_cols=2)
 extract_transactions_from_directory("./data/bofa_business/", "bofa_business", n_date_cols=2)
+
+'''
+processed transaction files:
+- ./data/processed/chase_prime_processed_transactions.csv
+- ./data/processed/bofa_allegiant_processed_transactions.csv
+- ./data/processed/bofa_business_processed_transactions.csv
+- ./data/processed/manual_processed_transactions.csv
+'''
+
+def extract_processed_transactions(file_path):
+    transactions = []
+    with open(file_path, 'r') as csvfile:
+        reader = csv.reader(csvfile)
+        header = next(reader)  # Skip header
+        for row in reader:
+            date, description, amount, filename, account_name = row
+            date_time_obj = datetime.datetime.strptime(date, "%m/%d/%Y")
+            amount_float = float(amount)
+            if amount_float < 0.0: # Skip negative amounts
+                continue
+            transactions.append([date_time_obj, description, amount_float, filename, account_name])
+    return transactions
+
+all_processed_transactions = []
+processed_transactions_filenames = [
+    "./data/processed/chase_prime_processed_transactions.csv",
+    "./data/processed/bofa_allegiant_processed_transactions.csv",
+    "./data/processed/bofa_business_processed_transactions.csv",
+    "./data/processed/manual_processed_transactions.csv"
+]
+
+for fn in processed_transactions_filenames:
+    transactions = extract_processed_transactions(fn)
+    all_processed_transactions += transactions
+
+# Sort transactions by date
+all_processed_transactions.sort(key=lambda x: x[0])
+
+print("All processed transactions:")
+for transaction in all_processed_transactions:
+    print(transaction)
+
+# now get monthly totals
+def get_monthly_totals(transactions):
+    monthly_totals = {}
+    for transaction in transactions:
+        date, description, amount, filename, account_name = transaction
+        month_year = date.strftime("%Y-%m")
+        if month_year not in monthly_totals:
+            monthly_totals[month_year] = 0.0
+        monthly_totals[month_year] += amount
+    return monthly_totals
+
+monthly_totals = get_monthly_totals(all_processed_transactions)
+
+print("Monthly totals:")
+for month_year, total in monthly_totals.items():
+    print(f"{month_year}: {total:.2f}")
+
+# now get yearly totals
+def get_yearly_totals(transactions):
+    yearly_totals = {}
+    for transaction in transactions:
+        date, description, amount, filename, account_name = transaction
+        year = date.strftime("%Y")
+        if year not in yearly_totals:
+            yearly_totals[year] = 0.0
+        yearly_totals[year] += amount
+    return yearly_totals
+
+yearly_totals = get_yearly_totals(all_processed_transactions)
+
+print("Yearly totals:")
+for year, total in yearly_totals.items():
+    print(f"{year}: {total:.2f}")
